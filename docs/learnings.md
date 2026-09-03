@@ -98,3 +98,79 @@ Fixed the four real bugs in this order: (1) created the missing `src/tracking.py
 ### What I'd do differently
 For library wrappers, write **one** end-to-end test that exercises the happy path with realistic calls (e.g., `get_or_create_experiment` → `start_run` → `log_params` → `log_metrics` → query via client) before writing per-function unit tests. That single test would have caught all 4 bugs at once.
 
+---
+
+## 2026-09-03 — Phase 6 (LGBM trainer)
+
+### What I learned
+**LightGBM's native categorical handling is a contract, not a flag.** Passing `categorical_feature=[...]` to `lgb.Dataset` is half the contract. The other half is that *every* DataFrame fed to the trained booster (per-fold validation slices, the test set, future inference data) must use the same `category` dtype AND the same category *set*. If even one column has a category in val that the training fold didn't see (or vice versa), the booster raises `ValueError: train and valid dataset categorical_feature do not match`. The fix is to pre-compute the union of categories across train + test once, then reindex every DataFrame to that union before it reaches LightGBM.
+
+**Two AUC numbers from the same OOF array are not the same number.** Per-fold AUC (mean of `roc_auc_score(y[fold_k], oof[fold_k])` for k = 0..4) and pooled AUC (`roc_auc_score(y, oof)`) measure subtly different things — pooled AUC is one ranking across all 668k rows, per-fold mean is the average of 5 separate rankings on different positive-rate slices. They differ by ~0.002-0.003 on this dataset, which is normal. Tests should not assert equality, only an empirical tolerance.
+
+**`MlflowClient.list_artifacts(run_id)` is non-recursive.** The method returns only files at the run's artifact root. To inspect files logged under a subdir like `oof/`, you have to call `list_artifacts(run_id, path="oof")` explicitly. Tests that union both sets cover both cases.
+
+### Code snippet that clicked
+```python
+# Pre-compute category unions so train/val/test share a category set
+def _build_category_unions(train, test, categorical_cols):
+    unions = {}
+    for col in categorical_cols:
+        if col in train.columns and col in test.columns:
+            combined = pd.concat([train[col], test[col]], axis=0, ignore_index=True)
+            unions[col] = pd.Index(combined.unique())
+    return unions
+
+# Then before every LightGBM call:
+df_aligned = df.copy()
+for col in categorical_cols:
+    df_aligned[col] = df_aligned[col].astype(
+        pd.CategoricalDtype(categories=unions[col])
+    )
+```
+
+This is the canonical recipe. Without it, you're one CV-fold partition away from a hard crash.
+
+### What confused me today
+Whether to use `lgb.Dataset` for the prediction-time data or just a raw DataFrame. The booster's `predict()` accepts either, but the categorical contract only holds for DataFrames that have been explicitly cast to `category` dtype. The cleanest separation: build `lgb.Dataset` only for training/validation (where LightGBM needs to compute bin edges), and use raw aligned DataFrames for prediction.
+
+### How I solved it
+Three real bugs hit, all caught by tests, all from the same family: "LightGBM/Mlflow contracts are stricter than they look". Refactored the trainer to compute category unions up front and apply them in one place (`_to_categorical`). The rest of the trainer stayed roughly the same.
+
+### What I'd do differently
+- For any library that has a "do X to my data" contract (LightGBM categoricals, sklearn's `check_is_fitted`, MLflow's experiment lookups), write **one** focused test that proves the contract before writing the bulk of the integration. A 5-line contract test catches 80% of integration bugs at zero cost.
+- When asserting equivalence between two metrics, run both computations once during development, observe the empirical gap, and bake that gap into the test tolerance. Don't write `< 1e-6` and hope.
+
+---
+
+## 2026-09-03 — Phase 7 (Submission file generation)
+
+### What I learned
+**Smoke tests and scale tests are different artifacts.** A "does this function write a file" test should use a 3-row fixture; a "does this work at production scale" test should use the 286,571-row real template. Mixing them — using a tiny fixture to test tiny behavior — is fine, but using the 286k template in a smoke test means a single bug (like `len(test_pred) != len(template)`) takes 30+ seconds to surface and obscures the actual problem. Split them.
+
+**Kaggle's sample_submission.csv is a contract, not a suggestion.** The id column, column order, and row count must match exactly. Anything that drifts (an extra column, a different sort order, a coerced dtype) will either fail the upload or — worse — upload but score zero. Testing for `extra_template_columns` preservation and `id` dtype preservation catches the silent-corruption class of bugs that the 3-row smoke test would have missed entirely.
+
+**Validation before I/O is the only safe order.** Check `len(test_ids) == len(test_pred)`, NaN/inf, [0, 1] range, before reading the template or writing anything. If the validation fails, the user's filesystem is left exactly as it was. This matters when the `out_path` is something they care about (e.g., their only copy of a half-written submission).
+
+### Code snippet that clicked
+```python
+# Always validate before any I/O
+test_pred = np.asarray(test_pred, dtype=np.float64)
+if len(test_ids) != len(test_pred):
+    raise ValueError(...)            # bail BEFORE reading the template
+if np.isnan(test_pred).any():
+    raise ValueError(...)            # bail BEFORE mkdir
+# Only now:
+template = pd.read_csv(template_path)
+out_path.parent.mkdir(parents=True, exist_ok=True)
+```
+
+### What confused me today
+Whether `template.copy()` then `out_df[TARGET_COL] = test_pred` was the right pattern vs building a fresh DataFrame from scratch. I went with `template.copy()` because it preserves the column order and any extra columns the template may carry. The "extra columns" preservation is what `test_make_submission_preserves_extra_template_columns` verifies.
+
+### How I solved it
+Bug: smoke test used the 286k template with 3-row predictions, hit pandas length mismatch. Fix: split the smoke test (3-row template) from the scale tests (286k template, plus multi-column and dtype preservation). No code changes needed — the bug was in the test, the production code was correct on the first run.
+
+### What I'd do differently
+- For every pipeline endpoint that takes "real" inputs (full train, full test, full submission), I should have **two** test files: one with a 3-row synthetic fixture (fast, isolates logic) and one with the real full-size fixture (slow, validates scale). Same code, different test data. The Phase 7 test file ended up with both kinds, but I added the scale tests after the smoke test failed rather than designing for them upfront.
+- When the user says "test for production", take that literally: production = real data, real size, real column layout, real dtype, real boundaries. Anything less is a unit test in disguise.
+
