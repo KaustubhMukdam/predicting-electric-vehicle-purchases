@@ -3,12 +3,12 @@
 > Atomic task list. One task = one thing finishable in a single session. Replaces Notion/Jira for this solo project.
 
 ## In progress
-- [ ] Phase 8 — `test_pipeline_e2e.py` (TDD): end-to-end smoke test on 1% data + Kaggle notebook
+- [ ] Phase 11 — first real Kaggle run + populate `model_card.md`
 
 ## Up next (in order)
-- [ ] Phase 9 — `notebooks/EDA.ipynb`: reproduce the EDA from plan mode
-- [ ] Phase 10 — `notebooks/train.ipynb`: Kaggle-ready end-to-end runner
-- [ ] Phase 11 — first real Kaggle run + populate `model_card.md`
+- [ ] Phase 12 — Optuna hyperparameter sweep (gated)
+- [ ] Phase 13 — XGBoost / CatBoost diversity models (gated)
+- [ ] Phase 14 — Rank-averaged ensemble (gated)
 
 ## Done
 - [x] Phase 0 — project skeleton
@@ -18,9 +18,12 @@
 - [x] Phase 4 — `cv.py`
 - [x] Phase 5 — `tracking.py`
 - [x] Phase 6 — `train_lgbm.py`
-- [x] Phase 7 — `predict.py` (16/16 tests green, 85/85 across the project)
-- [x] All 12 docs in `docs/` written and updated through Phase 7
-- [x] `experiment_log.md` has Experiments 0, 1, 2
+- [x] Phase 7 — `predict.py`
+- [x] Phase 8 — `test_pipeline_e2e.py` (8/8 tests green, 93/93 across the project)
+- [x] Phase 9 — `notebooks/EDA.ipynb` (8 code cells, 0 syntax errors)
+- [x] Phase 10 — `notebooks/train.ipynb` (7 code cells, 0 syntax errors)
+- [x] All 12 docs in `docs/` updated through Phase 10
+- [x] `experiment_log.md` has Experiments 0, 1, 2, 3
 
 ## Backlog (post-MVP, each its own phase)
 - [ ] Optuna sweep (50–100 trials) on LGBM hyperparameters
