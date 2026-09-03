@@ -3,11 +3,9 @@
 > Atomic task list. One task = one thing finishable in a single session. Replaces Notion/Jira for this solo project.
 
 ## In progress
-- (paused — awaiting your go-ahead for Phase 7)
+- [ ] Phase 8 — `test_pipeline_e2e.py` (TDD): end-to-end smoke test on 1% data + Kaggle notebook
 
 ## Up next (in order)
-- [ ] Phase 7 — `predict.py` + test (TDD): submission file from template
-- [ ] Phase 8 — `test_pipeline_e2e.py`: smoke-test the whole pipeline on 1% data
 - [ ] Phase 9 — `notebooks/EDA.ipynb`: reproduce the EDA from plan mode
 - [ ] Phase 10 — `notebooks/train.ipynb`: Kaggle-ready end-to-end runner
 - [ ] Phase 11 — first real Kaggle run + populate `model_card.md`
@@ -19,9 +17,10 @@
 - [x] Phase 3 — `features.py`
 - [x] Phase 4 — `cv.py`
 - [x] Phase 5 — `tracking.py`
-- [x] Phase 6 — `train_lgbm.py` (9/9 tests green, 69/69 across the project)
-- [x] All 12 docs in `docs/` written and updated through Phase 6
-- [x] `experiment_log.md` now has Experiments 0 (constant) and 1 (LGBM 1% smoke test)
+- [x] Phase 6 — `train_lgbm.py`
+- [x] Phase 7 — `predict.py` (16/16 tests green, 85/85 across the project)
+- [x] All 12 docs in `docs/` written and updated through Phase 7
+- [x] `experiment_log.md` has Experiments 0, 1, 2
 
 ## Backlog (post-MVP, each its own phase)
 - [ ] Optuna sweep (50–100 trials) on LGBM hyperparameters

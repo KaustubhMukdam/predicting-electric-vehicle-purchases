@@ -65,7 +65,33 @@
 
 ---
 
-## 2026-09-03 — `ValueError: train and valid dataset categorical_feature do not match` (9 tests red in `train_lgbm`)
+## 2026-09-03 — `ValueError: Length of values (3) does not match length of index (286571)` in `make_submission`
+
+**Project:** predicting-electric-vehicle-purchases (Phase 7)
+**Error message:**
+```
+ValueError: Length of values (3) does not match length of index (286571)
+```
+Raised at `out_df[TARGET_COL] = test_pred` inside `src/predict.py:94`.
+
+**Root cause:** The test `test_make_submission_writes_a_csv_file` passed a 3-element `test_ids` / `test_pred` to `make_submission` but used the real 286,571-row `sample_submission.csv` as the template. My code did `template.copy()` (286,571 rows) and then assigned the 3-element predictions into that column — pandas refused with the length mismatch.
+
+**Fix:** Test was wrong. The "writes a file" smoke test should use its own tiny 3-row template, not the real 286k one. The real 286k path is covered separately in `test_make_submission_round_trip_with_real_template` and `test_make_submission_full_real_template_with_unique_predictions`.
+
+**Time lost:** ~1 min
+**How I found it:** Traceback pointed at the column assignment line, and the test params showed 3 vs 286571.
+**Pattern to remember:** For tests that verify a *property* of the function (file gets written, exception gets raised), use the smallest fixture that exercises that property. For tests that verify *scale* (round-trip at production size, dtype preservation, etc.), use the real data. Splitting "smoke" from "scale" makes both kinds of test much faster and clearer.
+
+---
+
+## 2026-09-03 — LightGBM's native categorical handling is a contract, not a flag (Phase 6 entry)
+
+**Project:** predicting-electric-vehicle-purchases (Phase 6)
+**Error message:**
+```
+ValueError: train and valid dataset categorical_feature do not match.
+```
+Raised inside `lgb.basic._data_from_pandas` when `booster.predict()` is called on a raw DataFrame (not a `lgb.Dataset`) for the validation fold.
 
 **Project:** predicting-electric-vehicle-purchases (Phase 6)
 **Error message:**

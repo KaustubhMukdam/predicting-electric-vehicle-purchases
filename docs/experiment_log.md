@@ -30,7 +30,6 @@ preds = np.full(len(test), 0.1746450016076809)
 ---
 
 ## Experiment 1 — 2026-09-03 (LGBM smoke test, 1% data slice)
-
 **Hypothesis:** A LightGBM with native categorical handling, trained on 6,686 rows (1% of train) with the minimal engineered features from `src/features.py`, should produce an out-of-fold AUC meaningfully above 0.85. The features alone carry the signal; we're verifying the trainer is wired correctly.
 
 **Change made:**
@@ -50,6 +49,26 @@ preds = np.full(len(test), 0.1746450016076809)
 **Why (your understanding):** LightGBM picks up the four strong signals (`Range_Anxiety_Level`, `Subsidy_Available`, `Environmental_Concern_Level`, `Annual_Income_USD`) immediately. The engineered features contribute marginally on a 1% slice — the raw features alone hit ~0.93 in the `test_train_lgbm_uses_only_specified_features` test.
 
 **Next experiment:** Run the trainer on the **full** 668,665-row train set (Phase 11) and submit to Kaggle. Expect a small CV gain (~0.005-0.01) from the larger training data.
+
+---
+
+## Experiment 2 — 2026-09-03 (Submission pipeline unit tests, full 286k scale)
+
+**Hypothesis:** `make_submission` should produce a Kaggle-valid file at any scale, with id column preserved exactly, target column replaced by predictions, and the 286,571-row template round-tripped cleanly.
+
+**Change made:** Wrote 16 tests in `tests/test_predict.py`:
+- 4 happy-path tests (file written, shape, id preserved, predictions in target column).
+- 5 validation tests (length mismatch, out-of-range, NaN preds, NaN ids, missing template, missing target column).
+- 2 idempotence/integration tests (idempotent, parent dir created).
+- 5 production-scale tests (round-trip on 286k template, unique preds at scale, extra columns preserved, id dtype preserved, file integrity check).
+
+**Results:** 16/16 green. The first run had one red: a smoke test that mixed 3-row data with the 286k template, hit a pandas length mismatch, and was fixed by splitting smoke (3-row) from scale (286k).
+
+**What happened:** Confirmed `make_submission` works at production scale. The output CSV has the same row count, same id range, same id dtype, and the target column contains exactly the predictions passed in. Extra template columns (e.g., `extra_meta`) are preserved unchanged.
+
+**Why (your understanding):** Validation happens before any I/O. `template.copy()` then column-assignment preserves the template's column order and any extra columns. The submission is byte-identical between two consecutive calls with the same inputs.
+
+**Next experiment:** Wire `make_submission` into the E2E pipeline test (Phase 8), then build the Kaggle notebook (Phase 10) that runs `load_data → build_features → make_folds → train_lgbm → make_submission` end-to-end and writes `/kaggle/working/submission.csv`.
 
 ---
 
