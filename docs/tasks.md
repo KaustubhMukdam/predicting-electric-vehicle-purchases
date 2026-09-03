@@ -3,20 +3,25 @@
 > Atomic task list. One task = one thing finishable in a single session. Replaces Notion/Jira for this solo project.
 
 ## In progress
-- [ ] Phase 0 — project skeleton: `requirements.txt`, `pytest.ini`, `conftest.py`, `.gitignore` updates, empty `src/` and `tests/` placeholders
+- (paused — awaiting your go-ahead for Phase 7)
 
 ## Up next (in order)
-- [ ] Phase 1 — `config.py` + `utils.py` + their tests (TDD)
-- [ ] Phase 2 — `data.py` + test (TDD): schema validation, target mapping, dtype coercion
-- [ ] Phase 3 — `features.py` + test (TDD): 6 engineered features
-- [ ] Phase 4 — `cv.py` + test (TDD): stratified KFold
-- [ ] Phase 5 — `tracking.py` + test (TDD): MLflow wrapper
-- [ ] Phase 6 — `train_lgbm.py` + test (TDD): 5-fold trainer with OOF + test preds
 - [ ] Phase 7 — `predict.py` + test (TDD): submission file from template
 - [ ] Phase 8 — `test_pipeline_e2e.py`: smoke-test the whole pipeline on 1% data
 - [ ] Phase 9 — `notebooks/EDA.ipynb`: reproduce the EDA from plan mode
 - [ ] Phase 10 — `notebooks/train.ipynb`: Kaggle-ready end-to-end runner
-- [ ] Phase 11 — first real Kaggle run + populate `model_card.md` + first `experiment_log.md` row
+- [ ] Phase 11 — first real Kaggle run + populate `model_card.md`
+
+## Done
+- [x] Phase 0 — project skeleton
+- [x] Phase 1 — `config.py` + `utils.py`
+- [x] Phase 2 — `data.py`
+- [x] Phase 3 — `features.py`
+- [x] Phase 4 — `cv.py`
+- [x] Phase 5 — `tracking.py`
+- [x] Phase 6 — `train_lgbm.py` (9/9 tests green, 69/69 across the project)
+- [x] All 12 docs in `docs/` written and updated through Phase 6
+- [x] `experiment_log.md` now has Experiments 0 (constant) and 1 (LGBM 1% smoke test)
 
 ## Backlog (post-MVP, each its own phase)
 - [ ] Optuna sweep (50–100 trials) on LGBM hyperparameters
