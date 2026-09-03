@@ -90,3 +90,30 @@ preds = np.full(len(test), 0.1746450016076809)
 
 ---
 
+## Experiment 4 — 2026-09-03 (Full-data run, 668,665 train rows)
+
+**Hypothesis:** Running the v1 LightGBM on the full training set (no slicing) should produce an OOF AUC of 0.93-0.95 and a stable fold std (< 0.005). The 1% smoke test in Experiment 1 hit ~0.93; the full run should match or slightly exceed it because of the larger training data per fold.
+
+**Change made:** Wrote `scripts/train_full.py` (production mirror of `train.ipynb`). Ran it on the full data with the default LGBM params, `num_boost_round=1500`, `early_stopping_rounds=100`, 5-fold CV. Tracked via MLflow under run name `phase11_full_data_v1`.
+
+**Results:**
+
+| Metric | Value |
+|---|---|
+| Mean CV AUC (5 folds) | **0.94181** |
+| Std CV AUC | 0.00080 |
+| Per-fold AUC | [0.94053, 0.94160, 0.94294, 0.94232, 0.94168] |
+| Pooled OOF AUC (all 668,665 rows) | 0.94180 |
+| Runtime | 509 s (~8.5 min on local CPU) |
+| Submission file | `submissions/submission_lgbm_v1.csv` (286,571 rows) |
+| Will_Buy_EV range | [0.0001, 0.9577] |
+| Will_Buy_EV mean | 0.1747 (base rate: 0.1746) |
+
+**What happened:** Beat the 0.93 floor by ~1.2 percentage points. The model is stable across folds (std 0.0008). The 0.001 gap between mean-of-folds (0.94181) and pooled OOF (0.94180) confirms the per-fold-vs-pooled gap is negligible at scale. Submission mean (0.1747) matches the train base rate (0.1746), as expected from a well-calibrated ranking model.
+
+**Why (your understanding):** The full 668k rows give each fold's training set ~535k rows (vs ~5.3k in the 1% smoke test). That's a 100x increase in data per fold, which the LGBM converts directly into better splits and better OOF predictions. The 0.93 → 0.94 jump comes from the model being able to learn finer-grained interaction effects that the 1% slice didn't have enough samples to estimate.
+
+**Next experiment:** Submit to Kaggle and record the public leaderboard score. Then start the Optuna sweep (Phase 12) to see if the OOF AUC can be pushed to 0.95+ via hyperparameter tuning.
+
+---
+
