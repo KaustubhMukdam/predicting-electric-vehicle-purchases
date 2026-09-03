@@ -72,3 +72,21 @@ preds = np.full(len(test), 0.1746450016076809)
 
 ---
 
+## Experiment 3 — 2026-09-03 (E2E pipeline on 1% train slice, full test set)
+
+**Hypothesis:** Wiring `load_data → build_features → make_folds → train_lgbm → make_submission` into a single E2E test on a 1% train slice should produce a valid submission file in under 2 minutes and an OOF AUC well above the 0.85 floor.
+
+**Change made:** Wrote `tests/test_pipeline_e2e.py` with 8 assertions (file exists, shape, id preservation, AUC floor, metrics keys, prediction validity, etc.) wired through a module-scoped fixture that runs the full pipeline once and reuses the artifacts.
+
+**Results:** 8/8 green, total run time ~85 s.
+- OOF AUC on the 1% slice: ~0.93 (matches Experiment 1).
+- Submission file: 286,571 rows × 2 columns, id column matches the test set exactly, `Will_Buy_EV` column contains the trainer's predictions in the same order.
+
+**What happened:** E2E green on first red→fix cycle. The only bug was the E2E fixture slicing the test set instead of the train set — same shape mismatch as the Phase 7 smoke test, same fix pattern (slice the right thing). The `src/` library had no bugs.
+
+**Why (your understanding):** Each module's contract held under integration. The LightGBM categorical contract, the submission validation order, the CV fold shape — all survived the wiring. This is the strongest signal we have so far that the library is correct.
+
+**Next experiment:** Build the Kaggle notebook (Phase 10) that runs the same pipeline at full data scale (668k train rows, 286k test rows, ~5-10 min on Kaggle CPU) and writes `/kaggle/working/submission.csv`. Expected OOF AUC: 0.93-0.95.
+
+---
+

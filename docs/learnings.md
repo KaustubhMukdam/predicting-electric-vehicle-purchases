@@ -174,3 +174,39 @@ Bug: smoke test used the 286k template with 3-row predictions, hit pandas length
 - For every pipeline endpoint that takes "real" inputs (full train, full test, full submission), I should have **two** test files: one with a 3-row synthetic fixture (fast, isolates logic) and one with the real full-size fixture (slow, validates scale). Same code, different test data. The Phase 7 test file ended up with both kinds, but I added the scale tests after the smoke test failed rather than designing for them upfront.
 - When the user says "test for production", take that literally: production = real data, real size, real column layout, real dtype, real boundaries. Anything less is a unit test in disguise.
 
+---
+
+## 2026-09-03 — Phase 8 (End-to-end pipeline test)
+
+### What I learned
+**E2E tests must mirror production, not just exercise the modules.** The first version of `test_pipeline_e2e.py` sliced both train AND test down to 1% for speed. That sounds reasonable but is wrong: in production, the submission file is always the full 286,571-row shape. The right knob to turn for E2E speed is the *train* slice (where the OOF/CV happens), never the *test* slice (which must be full to produce a valid submission). Train is slow, test inference is fast — slice train aggressively, predict on the full test.
+
+**Module-scoped fixtures are a 10x speedup for slow tests.** The E2E training takes ~80 seconds. With a function-scoped fixture, every test re-trained. With a module-scoped fixture, training happens once, and the 8 tests that follow just re-read the produced files. Total suite time dropped from ~10 min to ~85 s. The cost: tests are no longer independent (one fixture, many tests), but for a 1% smoke run that's fine.
+
+**The "E2E green" signal is meaningful.** When the E2E test passes, it means: data loads correctly, features compute correctly, CV folds are sane, LightGBM trains without crashing on a real data slice, predictions are valid probabilities, and the submission file is shape-correct. That's a complete contract for the pipeline. If the Kaggle notebook later fails, the failure is in something the E2E didn't cover (Kaggle-specific path, full-data run, MLflow artifact fetching), not in the library code.
+
+### Code snippet that clicked
+```python
+@pytest.fixture(scope="module")
+def e2e_artifacts(tmp_path_factory):
+    # Load full train + full test
+    train, test = load_data(TRAIN_CSV, TEST_CSV)
+    # Slice only the train — keep the test at full size so the submission
+    # mirrors production shape.
+    train_small = train.iloc[keep].reset_index(drop=True)
+    # Train, predict on FULL test, write submission.
+    oof, test_pred, metrics = train_lgbm(..., test=test, ...)
+    make_submission(test_ids=test["id"], test_pred=test_pred, ...)
+    return {"oof": oof, "test_pred": test_pred, ...}
+```
+
+### What confused me today
+Whether to make the E2E test do real training or just mock the trainer call. I went with real training (1% slice) because the E2E's whole point is to verify the modules *integrate* — a mock would have hidden the LightGBM categorical contract bug from Phase 6 entirely. The 80-second cost is worth the integration confidence.
+
+### How I solved it
+Bug: E2E fixture used 1% test slice + 286k template, hit length mismatch. Fix: use 1% train slice + full test set. Production-mirror shape, train-slice speed. One edit, no `src/` code changes — the production code was correct on the first run.
+
+### What I'd do differently
+- For any E2E test, write down the production flow on a sticky note: "load full data → slice train → train → predict on full test → write submission". Then make the test match that flow exactly. Don't add "smart" optimizations like slicing the test set — they break the production contract and the test stops being a proxy for production.
+- Module-scoped fixtures should be the default for any fixture that takes more than a few seconds. Function-scoped is for pure functions and fast I/O.
+

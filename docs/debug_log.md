@@ -65,7 +65,26 @@
 
 ---
 
-## 2026-09-03 — `ValueError: Length of values (3) does not match length of index (286571)` in `make_submission`
+## 2026-09-03 — E2E pipeline test mixed 1% test slice with full 286k template (8 errors)
+
+**Project:** predicting-electric-vehicle-purchases (Phase 8)
+**Error message:**
+```
+ValueError: Length of values (2866) does not match length of index (286571)
+```
+Raised at `out_df[TARGET_COL] = test_pred` inside the E2E fixture.
+
+**Root cause:** The E2E test took 1% of train AND 1% of test for speed, then passed the 2,866-row test predictions into `make_submission` with the full 286,571-row real `sample_submission.csv` template. Same shape mismatch as the Phase 7 smoke test, but here the E2E legitimately needs to mirror production: in production, you train on (some of) train and predict on the **full** test set. The 1% train slice is fine, but the 1% test slice is not.
+
+**Fix:** Changed the E2E fixture to use a 1% train slice and the **full** test set. Train is slow (so we slice it), test inference is fast (so we run it on all 286k rows). The submission now has 286,571 rows with valid predictions — exactly the production shape.
+
+**Time lost:** ~2 min
+**How I found it:** Same traceback as the Phase 7 bug. Recognized it immediately.
+**Pattern to remember:** E2E tests must mirror production. In production: slice train for speed, predict on full test. The submission file size is fixed by the Kaggle template; you don't get to shrink it for "speed". The right knob to turn for E2E speed is the *train* slice, never the *test* slice.
+
+---
+
+## 2026-09-03 — `ValueError: Length of values (3) does not match length of index (286571)` in `make_submission` (Phase 7)
 
 **Project:** predicting-electric-vehicle-purchases (Phase 7)
 **Error message:**

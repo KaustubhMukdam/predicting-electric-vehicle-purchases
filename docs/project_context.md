@@ -28,7 +28,7 @@ Binary classification on a Kaggle Playground Series dataset — predict whether 
 - All tests use the real `data/train.csv` and `data/test.csv` (no synthetic fixtures) so we catch real-data quirks.
 
 ## Current focus
-Phase 0 — project skeleton (requirements, pytest config, .gitignore, empty `src/` and `tests/` placeholders). No code yet.
+Phase 8–10 done. Library complete (config, utils, data, features, cv, tracking, train_lgbm, predict). 93/93 tests green. E2E test + EDA notebook + Kaggle train notebook all written. Ready for Phase 11: first real Kaggle run on full data.
 
 ## Known issues / blockers
 - None. EDA completed in plan mode: 668,665 train rows, 286,571 test rows, no missing values, no duplicates, target imbalance 82.5% / 17.5%. Strong signals: `Range_Anxiety_Level`, `Subsidy_Available`, `Environmental_Concern_Level`, `Annual_Income_USD`. Weak signals: `Gender`, `Number_of_Cars_Owned`, commute distance.
