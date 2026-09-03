@@ -1,0 +1,15 @@
+data/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+oof/
+submissions/
+mlruns/
+.ipynb_checkpoints/
+*.egg-info/
+.coverage
+htmlcov/
+docs/dev_system_guide.md

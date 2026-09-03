@@ -1,0 +1,6 @@
+pandas~=2.2
+numpy~=1.26
+scikit-learn~=1.4
+lightgbm~=4.3
+mlflow~=2.13
+pytest~=8.0
