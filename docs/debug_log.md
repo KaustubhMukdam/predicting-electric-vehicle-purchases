@@ -65,6 +65,21 @@
 
 ---
 
+## 2026-09-04 — `max_depth=-1` (LGBM's "no cap" sentinel) can't live in an Optuna search range
+
+**Project:** predicting-electric-vehicle-purchases (Phase 12)
+**Error message:** `AssertionError: default mismatch for max_depth: search=8, trainer=-1`
+
+**Root cause:** `LGBMSearchSpace.defaults["max_depth"]` was 8 (because Optuna's `suggest_int` needs a finite range) but `DEFAULT_LGBM_PARAMS["max_depth"]` is -1 (LGBM's "no cap" sentinel). I wrote a test that asserted strict equality between the two — wrong invariant. They are *intentionally* different: the search space cannot contain -1, but the production model can.
+
+**Fix:** Replaced the equality test with a range-membership test: every default value must lie inside its corresponding search range. Trial #0 (the default-configured trial) is now guaranteed to be a valid sample. The `objective()` already maps any `max_depth >= 12` back to -1 at training time, so the trained model still gets the "no cap" behavior when appropriate.
+
+**Time lost:** ~1 min
+**How I found it:** Traceback named `max_depth` and the diff was clean.
+**Pattern to remember:** When a library has a sentinel value (here, `-1` for "no max depth") and a tuning framework requires a finite range, the search-space default and the production default will necessarily diverge. The right invariant is *range membership*, not *equality*. Always test the contract that actually matters, not the implementation detail.
+
+---
+
 ## 2026-09-03 — E2E pipeline test mixed 1% test slice with full 286k template (8 errors)
 
 **Project:** predicting-electric-vehicle-purchases (Phase 8)

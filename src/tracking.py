@@ -39,7 +39,16 @@ def _ensure_local_tracking_uri() -> None:
     """If the tracking URI has not been set explicitly, point MLflow at
     the local `mlruns/` directory inside the project. This is the
     default behavior on both local and Kaggle runs unless the caller
-    overrides it (e.g. via `set_tracking_uri` in the notebook)."""
+    overrides it (e.g. via `set_tracking_uri` in the notebook).
+
+    Also opts in to the file-store backend if MLflow 2.22+ has put it
+    in maintenance mode. (Kaggle ships MLflow 2.22, which raises
+    `MlflowException` on file-store use unless
+    `MLFLOW_ALLOW_FILE_STORE=true` is set.)"""
+    # Opt in to the file backend before any MLflow call, so the
+    # experiment creation in get_or_create_experiment doesn't fail.
+    os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
+
     if mlflow.get_tracking_uri() in ("", None):
         MLRUNS_DIR.mkdir(parents=True, exist_ok=True)
         set_tracking_uri(MLRUNS_DIR)
