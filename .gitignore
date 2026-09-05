@@ -13,3 +13,7 @@ mlruns/
 .coverage
 htmlcov/
 docs/dev_system_guide.md
+competition_v2/eda_outputs
+outputs/
+src.zip
+train.py

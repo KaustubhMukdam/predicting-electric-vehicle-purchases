@@ -7,6 +7,7 @@ that can be queried via the MLflow client API.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import mlflow
@@ -144,3 +145,16 @@ def test_get_or_create_experiment_creates_named_experiment(temp_mlruns):
     # Calling twice returns the same id.
     exp_id_2 = get_or_create_experiment("my-test-experiment")
     assert exp_id == exp_id_2
+
+
+def test_ensure_local_tracking_uri_sets_file_store_opt_in(monkeypatch, tmp_path):
+    """On Kaggle (MLflow 2.22+), the file backend is in maintenance mode
+    and refuses to run unless `MLFLOW_ALLOW_FILE_STORE=true` is set.
+    `_ensure_local_tracking_uri` must set this env var so the experiment
+    creation that follows doesn't blow up.
+    """
+    monkeypatch.delenv("MLFLOW_ALLOW_FILE_STORE", raising=False)
+    from src.tracking import _ensure_local_tracking_uri
+
+    _ensure_local_tracking_uri()
+    assert os.environ.get("MLFLOW_ALLOW_FILE_STORE") == "true"

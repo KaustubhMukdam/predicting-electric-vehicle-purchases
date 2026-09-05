@@ -147,15 +147,22 @@ def test_train_notebook_uses_full_train_data():
 
 
 def test_train_notebook_all_code_cells_parse_as_valid_python():
-    """Each code cell in the notebook must be syntactically valid Python.
-    Catches typos and missing imports before the user hits Run All."""
+    """Each code cell in the notebook must be syntactically valid Python
+    (or contain only Jupyter shell-magic, which is not Python).
+    Catches typos and missing imports before the user hits Run All.
+    """
     nb = _load_notebook(NOTEBOOKS_DIR / "train.ipynb")
     for i, cell in enumerate(nb["cells"]):
         if cell["cell_type"] != "code":
             continue
         src = "".join(cell["source"])
+        # Strip lines that are pure Jupyter shell-magic; they aren't
+        # valid Python and are perfectly fine in a notebook.
+        python_src = "\n".join(
+            line for line in src.splitlines() if not line.lstrip().startswith(("!", "%", "?"))
+        )
         try:
-            compile(src, f"<train.ipynb#cell-{i}>", "exec")
+            compile(python_src, f"<train.ipynb#cell-{i}>", "exec")
         except SyntaxError as e:
             pytest.fail(f"train.ipynb cell {i} has a syntax error:\n{e}")
 
@@ -166,7 +173,52 @@ def test_eda_notebook_all_code_cells_parse_as_valid_python():
         if cell["cell_type"] != "code":
             continue
         src = "".join(cell["source"])
+        python_src = "\n".join(
+            line for line in src.splitlines() if not line.lstrip().startswith(("!", "%", "?"))
+        )
         try:
-            compile(src, f"<EDA.ipynb#cell-{i}>", "exec")
+            compile(python_src, f"<EDA.ipynb#cell-{i}>", "exec")
         except SyntaxError as e:
             pytest.fail(f"EDA.ipynb cell {i} has a syntax error:\n{e}")
+
+
+def test_tune_optuna_notebook_exists():
+    p = NOTEBOOKS_DIR / "tune_optuna.ipynb"
+    assert p.exists(), f"Missing: {p}"
+
+
+def test_tune_optuna_notebook_is_valid_json():
+    nb = _load_notebook(NOTEBOOKS_DIR / "tune_optuna.ipynb")
+    assert "cells" in nb
+    assert nb.get("nbformat") == 4
+
+
+def test_tune_optuna_notebook_calls_run_optuna_sweep():
+    nb = _load_notebook(NOTEBOOKS_DIR / "tune_optuna.ipynb")
+    src = "".join(
+        "".join(c.get("source", [])) for c in nb["cells"] if c["cell_type"] == "code"
+    )
+    assert "run_optuna_sweep(" in src
+
+
+def test_tune_optuna_notebook_writes_v2_submission():
+    nb = _load_notebook(NOTEBOOKS_DIR / "tune_optuna.ipynb")
+    src = "".join(
+        "".join(c.get("source", [])) for c in nb["cells"] if c["cell_type"] == "code"
+    )
+    assert "submission_lgbm_v2.csv" in src
+
+
+def test_tune_optuna_notebook_all_code_cells_parse_as_valid_python():
+    nb = _load_notebook(NOTEBOOKS_DIR / "tune_optuna.ipynb")
+    for i, cell in enumerate(nb["cells"]):
+        if cell["cell_type"] != "code":
+            continue
+        src = "".join(cell["source"])
+        python_src = "\n".join(
+            line for line in src.splitlines() if not line.lstrip().startswith(("!", "%", "?"))
+        )
+        try:
+            compile(python_src, f"<tune_optuna.ipynb#cell-{i}>", "exec")
+        except SyntaxError as e:
+            pytest.fail(f"tune_optuna.ipynb cell {i} has a syntax error:\n{e}")
