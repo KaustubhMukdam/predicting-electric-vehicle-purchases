@@ -17,3 +17,4 @@ competition_v2/eda_outputs
 outputs/
 src.zip
 train.py
+test_pred_lgbm_v2.npy
